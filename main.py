@@ -7,12 +7,52 @@ from tkinter import messagebox
 
 class Data:
     def __init__(self) -> None:
+        self._check_times()
+
+    def set_new_record(self, new_record: float) -> None:
+        self._check_times()
+
+        last_record = self.get_record_now()
+
+        with open("data.json", "w") as file:
+            json.dump({
+                "record_now": {"time": new_record, "code": hash(new_record)},
+                "record_before": {"time": last_record, "code": hash(last_record)}
+            }, file, indent=4)
+
+    def get_record_now(self) -> float:
+        self._check_times()
+
+        with open("data.json", "r") as file:
+            return json.load(file)["record_now"]["time"]
+
+    @staticmethod
+    def _check_file() -> None:
         try:
             with open("data.json", "r") as file:
-                self.data: dict = json.load(file)
-        except (json.JSONDecodeError, FileNotFoundError):
+                data: dict = json.load(file)
+            _, _, _, _ = (data["record_now"]["time"], data["record_now"]["code"],
+                          data["record_before"]["time"], data["record_before"]["code"])
+        except (json.JSONDecodeError, FileNotFoundError, KeyError):
             with open("data.json", "w") as file:
-                json.dump({}, file)
+                json.dump({
+                    "record_now": {"time": None, "code": hash(None)},
+                    "record_before": {"time": None, "code": hash(None)}}, file, indent=4)
+
+    def _check_times(self) -> None:
+        self._check_file()
+
+        with open("data.json") as file:
+            data: dict = json.load(file)
+
+        if hash(data["record_now"]["time"]) != data["record_now"]["code"]:
+            data["record_now"] = {"time": None, "code": hash(None)}
+
+        if hash(data["record_before"]["time"]) != data["record_before"]["code"]:
+            data["record_before"] = {"time": None, "code": hash(None)}
+
+        with open("data.json", "w") as file:
+            json.dump(data, file, indent=4)
 
 
 class Root(ctk.CTk):
@@ -43,7 +83,6 @@ class Root(ctk.CTk):
         self.time_label.pack(pady=(120, 0))
 
         self.timer = 0
-        self.best_time = 0
         self._reset_timer(False, True)
 
     def _on_choose_option(self, option: Literal["solve", "asm"]) -> None:
@@ -127,16 +166,15 @@ class Root(ctk.CTk):
                 self.update()
                 self.after(15)
 
-            if count and (self.timer < self.best_time or self.best_time == 0):
-                self.best_time = self.timer
-                self.best_time_label.configure(text=f"Best time: {self.best_time}")
+            if count and (self.timer < self.data.get_record_now() or self.data.get_record_now() == 0):
+                self.data.set_new_record(self.timer)
+                self.best_time_label.configure(text=f"Best time: {self.timer}")
         else:
-            self.best_time_label = ctk.CTkLabel(self, text="")
+            self.best_time_label = ctk.CTkLabel(self, text=f"Best time: {self.data.get_record_now()}")
             self.best_time_label.pack(pady=10, side=ctk.BOTTOM)
 
         self.req_to_stop_timer = False
         self.timer = 0
-        self.last_time = 0
 
         self.time_label.configure(text="Hold down space to start...")
         self.bind("<KeyRelease>", self._start_timer)
