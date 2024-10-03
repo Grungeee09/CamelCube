@@ -166,11 +166,12 @@ class Root(ctk.CTk):
                 self.update()
                 self.after(15)
 
-            if count and (self.timer < self.data.get_record_now() or self.data.get_record_now() == 0):
+            if count and (self.data.get_record_now() is None or self.timer < self.data.get_record_now()):
                 self.data.set_new_record(self.timer)
                 self.best_time_label.configure(text=f"Best time: {self.timer}")
         else:
-            self.best_time_label = ctk.CTkLabel(self, text=f"Best time: {self.data.get_record_now()}")
+            record_now = self.data.get_record_now()
+            self.best_time_label = ctk.CTkLabel(self, text=f"Best time: {record_now if record_now is not None else ""}")
             self.best_time_label.pack(pady=10, side=ctk.BOTTOM)
 
         self.req_to_stop_timer = False
